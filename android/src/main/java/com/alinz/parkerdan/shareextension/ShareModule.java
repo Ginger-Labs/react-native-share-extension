@@ -1,5 +1,6 @@
 package com.alinz.parkerdan.shareextension;
 
+import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
@@ -9,68 +10,75 @@ import com.facebook.react.bridge.Arguments;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.net.Uri;
 
-import android.graphics.Bitmap;
-import java.io.InputStream;
+import android.util.Log;
 
+public class ShareModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
-public class ShareModule extends ReactContextBaseJavaModule {
+    private String newIntentValue = null;
 
+    public ShareModule(ReactApplicationContext reactContext) {
+        super(reactContext);
+        reactContext.addActivityEventListener(this);
+    }
 
-  public ShareModule(ReactApplicationContext reactContext) {
-      super(reactContext);
-  }
+    @Override
+    public String getName() {
+        return "ReactNativeShareExtension";
+    }
 
-  @Override
-  public String getName() {
-      return "ReactNativeShareExtension";
-  }
-
-  @ReactMethod
-  public void close() {
-    getCurrentActivity().finish();
-  }
-
-  @ReactMethod
-  public void data(Promise promise) {
-      promise.resolve(processIntent());
-  }
-
-  public WritableMap processIntent() {
-      WritableMap map = Arguments.createMap();
-
-      String value = "";
-      String type = "";
-      String action = "";
-
-      Activity currentActivity = getCurrentActivity();
-
-      if (currentActivity != null) {
-        Intent intent = currentActivity.getIntent();
-        action = intent.getAction();
-        type = intent.getType();
-        if (type == null) {
-          type = "";
+    @ReactMethod
+    public void close() {
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null && currentActivity.getIntent() != null) {
+            currentActivity.getIntent().removeExtra(Intent.EXTRA_TEXT);
         }
-        if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
-          value = intent.getStringExtra(Intent.EXTRA_TEXT);
+        newIntentValue = null;
+    }
+
+    @ReactMethod
+    public void data(Promise promise) {
+        promise.resolve(processIntent());
+    }
+
+    @Override
+    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+
+    }
+
+    public void onNewIntent(Intent intent) {
+        newIntentValue = intent.getStringExtra(Intent.EXTRA_TEXT);
+    }
+
+    private String consumeNewIntentValue() {
+        String value = newIntentValue;
+        newIntentValue = null;
+        return value;
+    }
+
+    public WritableMap processIntent() {
+        WritableMap map = Arguments.createMap();
+        Log.e(ShareModule.class.getCanonicalName(), "processIntent: ");
+        String value = "";
+        String type = "text/plain";
+
+        Activity currentActivity = getCurrentActivity();
+
+        if (currentActivity != null) {
+            Intent intent = currentActivity.getIntent();
+            value = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (value == null || value.length() == 0) {
+                value = consumeNewIntentValue();
+            }
+            Log.e(ShareModule.class.getCanonicalName(), "value: " + value);
+        } else {
+            value = "";
+            type = "";
         }
-        else if (Intent.ACTION_SEND.equals(action) && ("image/*".equals(type) || "image/jpeg".equals(type) || "image/png".equals(type) || "image/jpg".equals(type) ) ) {
-          Uri uri = (Uri) intent.getParcelableExtra(Intent.EXTRA_STREAM);
-         value = "file://" + RealPathUtil.getRealPathFromURI(currentActivity, uri);
+        Log.e(ShareModule.class.getCanonicalName(), "end value: " + value);
+        map.putString("type", type);
+        map.putString("value",value);
 
-       } else {
-         value = "";
-       }
-      } else {
-        value = "";
-        type = "";
-      }
-
-      map.putString("type", type);
-      map.putString("value",value);
-
-      return map;
-  }
+        return map;
+    }
 }

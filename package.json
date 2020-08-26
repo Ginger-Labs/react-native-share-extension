@@ -1,6 +1,6 @@
 {
   "name": "react-native-share-extension",
-  "version": "2.0.0-gl002",
+  "version": "2.0.0-gl003",
   "description": "share extension using react-native for both ios and android",
   "main": "lib/index.js",
   "scripts": {
